@@ -7,9 +7,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 
 /**
- * Shake detection based on the Bumble/Badoo algorithm (ArkadyGamza/ShakeDetector, UNLICENSE).
- * Detects direction reversals on the X axis rather than raw magnitude,
- * which avoids false positives from rolling over in bed.
+ * Shake detection based on the Bumble/Badoo reversal algorithm.
+ * Tracks X and Z axes independently — a shake on either triggers detection.
  */
 class ShakeDetector(
     context: Context,
@@ -17,18 +16,16 @@ class ShakeDetector(
 ) : SensorEventListener {
 
     companion object {
-        private const val THRESHOLD = 10f // m/s^2 on X axis (original: 13, lowered for gentle shake)
+        private const val THRESHOLD = 10f
         private const val REVERSALS_NEEDED = 3
-        private const val SHAKE_WINDOW_NS = 1_000_000_000L // 1 second
-        private const val COOLDOWN_NS = 1_000_000_000L // 1 second throttle
+        private const val SHAKE_WINDOW_NS = 1_000_000_000L
+        private const val COOLDOWN_NS = 1_000_000_000L
     }
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
-    private var lastSignificantX: Float = 0f
-    private val reversalTimestamps = LongArray(REVERSALS_NEEDED)
-    private var reversalCount = 0
+    private val axisTrackers = arrayOf(AxisTracker(), AxisTracker()) // X=0, Z=1
     private var lastShakeTimestampNs = 0L
 
     fun start() {
@@ -39,37 +36,57 @@ class ShakeDetector(
 
     fun stop() {
         sensorManager.unregisterListener(this)
-        reversalCount = 0
-        lastSignificantX = 0f
+        axisTrackers.forEach { it.reset() }
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        val x = event.values[0]
+        val timestamp = event.timestamp
+        val values = floatArrayOf(event.values[0], event.values[2]) // X, Z
 
-        if (Math.abs(x) <= THRESHOLD) return
-
-        if (lastSignificantX != 0f && lastSignificantX * x < 0f) {
-            val timestampNs = event.timestamp
-            val index = reversalCount % REVERSALS_NEEDED
-            reversalTimestamps[index] = timestampNs
-            reversalCount++
-
-            if (reversalCount >= REVERSALS_NEEDED) {
-                val oldestIndex = reversalCount % REVERSALS_NEEDED
-                val oldest = reversalTimestamps[oldestIndex]
-
-                if (timestampNs - oldest < SHAKE_WINDOW_NS) {
-                    if (timestampNs - lastShakeTimestampNs > COOLDOWN_NS) {
-                        lastShakeTimestampNs = timestampNs
-                        reversalCount = 0
-                        onShake()
-                    }
+        for (i in values.indices) {
+            if (axisTrackers[i].onValue(values[i], timestamp)) {
+                if (timestamp - lastShakeTimestampNs > COOLDOWN_NS) {
+                    lastShakeTimestampNs = timestamp
+                    axisTrackers.forEach { it.reset() }
+                    onShake()
+                    return
                 }
             }
         }
-
-        lastSignificantX = x
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    private class AxisTracker {
+        private var lastSignificant: Float = 0f
+        private val reversalTimestamps = LongArray(REVERSALS_NEEDED)
+        private var reversalCount = 0
+
+        fun reset() {
+            lastSignificant = 0f
+            reversalCount = 0
+        }
+
+        /** Returns true if a shake is detected on this axis. */
+        fun onValue(value: Float, timestampNs: Long): Boolean {
+            if (Math.abs(value) <= THRESHOLD) return false
+
+            if (lastSignificant != 0f && lastSignificant * value < 0f) {
+                val index = reversalCount % REVERSALS_NEEDED
+                reversalTimestamps[index] = timestampNs
+                reversalCount++
+
+                if (reversalCount >= REVERSALS_NEEDED) {
+                    val oldestIndex = reversalCount % REVERSALS_NEEDED
+                    val oldest = reversalTimestamps[oldestIndex]
+                    if (timestampNs - oldest < SHAKE_WINDOW_NS) {
+                        return true
+                    }
+                }
+            }
+
+            lastSignificant = value
+            return false
+        }
+    }
 }

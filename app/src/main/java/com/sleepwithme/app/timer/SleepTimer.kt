@@ -27,6 +27,7 @@ class SleepTimer(
     val remainingSeconds: StateFlow<Int> = _remainingSeconds
 
     private var durationMs = 0L
+    private var remainingMs = 0L
     private var timerJob: Job? = null
     private var stoppedAtMs = 0L
 
@@ -58,6 +59,13 @@ class SleepTimer(
         }
     }
 
+    fun adjustTime(deltaMs: Long) {
+        if (_state.value != TimerState.Running) return
+        remainingMs = (remainingMs + deltaMs).coerceAtLeast(0)
+        durationMs = (durationMs + deltaMs).coerceAtLeast(60_000) // min 1 minute base
+        _remainingSeconds.value = (remainingMs / 1000).toInt()
+    }
+
     fun stop() {
         timerJob?.cancel()
         _state.value = TimerState.Stopped
@@ -66,10 +74,10 @@ class SleepTimer(
 
     private fun startCountdown() {
         _state.value = TimerState.Running
+        remainingMs = durationMs
         _remainingSeconds.value = (durationMs / 1000).toInt()
 
         timerJob = scope.launch {
-            var remainingMs = durationMs
             while (remainingMs > 0 && isActive) {
                 delay(1000)
                 remainingMs -= 1000

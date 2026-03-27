@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.sleepwithme.app.data.Collection
 import com.sleepwithme.app.data.ManifestRepository
 import com.sleepwithme.app.data.PlaybackPrefs
+import com.sleepwithme.app.player.AmbientMode
 import com.sleepwithme.app.player.PlaybackService
 import com.sleepwithme.app.timer.SleepTimer
 import com.sleepwithme.app.timer.TimerState
@@ -38,11 +39,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _timerDurationMins = MutableStateFlow(prefs.timerDurationMins)
     val timerDurationMins: StateFlow<Int> = _timerDurationMins
 
+    private val _ambientMode = MutableStateFlow(AmbientMode.Off)
+    val ambientMode: StateFlow<AmbientMode> = _ambientMode
+
     val sleepTimer = SleepTimer(
         scope = viewModelScope,
-        onSetVolume = { volume -> playerService?.playerManager?.setVolume(volume) },
-        onPause = { playerService?.playerManager?.pause() },
-        onResume = { playerService?.playerManager?.play() },
+        onSetVolume = { volume ->
+            playerService?.playerManager?.setVolume(volume)
+            playerService?.ambientPlayer?.setVolume(volume * 0.5f)
+        },
+        onPause = {
+            playerService?.playerManager?.pause()
+            playerService?.ambientPlayer?.pause()
+        },
+        onResume = {
+            playerService?.playerManager?.play()
+            playerService?.ambientPlayer?.resume()
+        },
         onSavePosition = { saveCurrentPosition() }
     )
 
@@ -63,7 +76,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         service.onShake = { onShake() }
         tryLoadCollection()
 
-        // Bridge player state to our StateFlows
         viewModelScope.launch {
             service.playerManager.isPlaying.collect { _isPlaying.value = it }
         }
@@ -73,6 +85,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             service.playerManager.currentPositionMs.collect { _positionMs.value = it }
         }
+        viewModelScope.launch {
+            service.ambientPlayer.mode.collect { _ambientMode.value = it }
+        }
+    }
+
+    fun cycleAmbient() {
+        playerService?.ambientPlayer?.cycleMode()
     }
 
     private fun tryLoadCollection() {
@@ -103,28 +122,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val pm = playerService?.playerManager ?: return
         val wasPlaying = pm.isPlaying.value
         Log.d("MainViewModel", "togglePlayPause: wasPlaying=$wasPlaying, timerState=${sleepTimer.state.value}")
-        pm.togglePlayPause()
         if (!wasPlaying) {
+            // Always restore volume when manually playing
+            pm.setVolume(1f)
+            pm.play()
             if (sleepTimer.state.value == TimerState.Stopped) {
-                Log.d("MainViewModel", "Starting timer: ${_timerDurationMins.value} mins")
                 sleepTimer.start(_timerDurationMins.value)
             }
+        } else {
+            pm.pause()
         }
     }
 
-    fun next() {
-        playerService?.playerManager?.next()
-    }
-
-    fun previous() {
-        playerService?.playerManager?.previous()
+    fun seekRelative(deltaMs: Long) {
+        val pm = playerService?.playerManager ?: return
+        val newPos = (pm.getCurrentPositionMs() + deltaMs).coerceAtLeast(0)
+        pm.player.seekTo(newPos)
     }
 
     fun adjustTimer(deltaMins: Int) {
         val newDuration = (_timerDurationMins.value + deltaMins).coerceIn(5, 120)
         _timerDurationMins.value = newDuration
         prefs.timerDurationMins = newDuration
-        sleepTimer.start(newDuration)
+        sleepTimer.adjustTime(deltaMins * 60 * 1000L)
     }
 
     private fun onShake() {

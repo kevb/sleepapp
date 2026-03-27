@@ -19,6 +19,8 @@ class PlaybackService : MediaSessionService() {
 
     lateinit var playerManager: PlayerManager
         private set
+    lateinit var ambientPlayer: AmbientPlayer
+        private set
     private lateinit var mediaSession: MediaSession
     private lateinit var shakeDetector: ShakeDetector
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -30,6 +32,7 @@ class PlaybackService : MediaSessionService() {
         instance = this
 
         playerManager = PlayerManager(this, serviceScope)
+        ambientPlayer = AmbientPlayer(this)
         mediaSession = MediaSession.Builder(this, playerManager.player).build()
 
         shakeDetector = ShakeDetector(this) {
@@ -52,6 +55,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         shakeDetector.stop()
+        ambientPlayer.release()
         mediaSession.release()
         playerManager.release()
         serviceScope.cancel()
