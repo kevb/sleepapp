@@ -80,7 +80,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             service.playerManager.isPlaying.collect { _isPlaying.value = it }
         }
         viewModelScope.launch {
-            service.playerManager.currentTrackIndex.collect { _trackIndex.value = it }
+            service.playerManager.currentTrackIndex.collect { index ->
+                _trackIndex.value = index
+                // Prefetch current + next track, clean up old ones
+                _collection.value?.let { col ->
+                    service.playerManager.trackCache.ensureCached(col, index)
+                }
+            }
         }
         viewModelScope.launch {
             service.playerManager.currentPositionMs.collect { _positionMs.value = it }

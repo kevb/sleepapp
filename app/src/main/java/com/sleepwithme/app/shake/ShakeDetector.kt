@@ -17,7 +17,7 @@ class ShakeDetector(
 
     companion object {
         private const val THRESHOLD = 10f
-        private const val REVERSALS_NEEDED = 3
+        private const val REVERSALS_NEEDED = 2
         private const val SHAKE_WINDOW_NS = 1_000_000_000L
         private const val COOLDOWN_NS = 1_000_000_000L
     }

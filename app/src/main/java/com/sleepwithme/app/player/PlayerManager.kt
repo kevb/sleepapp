@@ -7,11 +7,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.sleepwithme.app.data.Collection
+import com.sleepwithme.app.data.TrackCache
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class PlayerManager(context: Context, private val scope: CoroutineScope) {
+
+    val trackCache = TrackCache(context)
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(
@@ -48,7 +51,9 @@ class PlayerManager(context: Context, private val scope: CoroutineScope) {
     }
 
     fun loadCollection(collection: Collection, startTrackIndex: Int = 0, startPositionMs: Long = 0) {
-        val items = collection.tracks.map { MediaItem.fromUri(it.url) }
+        val items = collection.tracks.map { track ->
+            MediaItem.fromUri(trackCache.getCachedUri(track))
+        }
         player.setMediaItems(items, startTrackIndex, startPositionMs)
         player.prepare()
         _currentTrackIndex.value = startTrackIndex
