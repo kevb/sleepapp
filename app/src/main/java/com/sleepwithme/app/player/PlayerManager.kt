@@ -58,12 +58,19 @@ class PlayerManager(context: Context, private val scope: CoroutineScope) {
     }
 
     fun loadCollection(collection: Collection, startTrackIndex: Int = 0, startPositionMs: Long = 0) {
-        val items = collection.tracks.map { track ->
-            MediaItem.fromUri(trackCache.getCachedUri(track))
-        }
-        player.setMediaItems(items, startTrackIndex, startPositionMs)
-        player.prepare()
         _currentTrackIndex.value = startTrackIndex
+        // Ensure the first track is cached before loading into the player
+        scope.launch {
+            val firstTrack = collection.tracks.getOrNull(startTrackIndex) ?: return@launch
+            trackCache.download(firstTrack)
+            val items = collection.tracks.map { track ->
+                MediaItem.fromUri(trackCache.getCachedUri(track))
+            }
+            withContext(Dispatchers.Main) {
+                player.setMediaItems(items, startTrackIndex, startPositionMs)
+                player.prepare()
+            }
+        }
     }
 
     fun play() {
