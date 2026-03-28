@@ -96,8 +96,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    val collections: StateFlow<List<Collection>> = manifestRepo.manifest
+        .map { it?.collections ?: emptyList() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     fun cycleAmbient() {
         playerService?.ambientPlayer?.cycleMode()
+    }
+
+    fun switchCollection(col: Collection) {
+        val service = playerService ?: return
+        if (col.id == _collection.value?.id) return
+        saveCurrentPosition()
+        sleepTimer.stop()
+        _collection.value = col
+        prefs.savePosition(collectionId = col.id, trackIndex = 0, positionMs = 0)
+        service.playerManager.loadCollection(col, startTrackIndex = 0, startPositionMs = 0)
     }
 
     private fun tryLoadCollection() {

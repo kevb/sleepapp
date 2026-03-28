@@ -1,4 +1,5 @@
 audio/
+scraper/
 opus-samples/
 *.mp3
 .DS_Store

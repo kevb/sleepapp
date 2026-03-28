@@ -13,7 +13,7 @@ import java.net.URL
 class ManifestRepository(context: Context) {
 
     companion object {
-        private const val BASE_URL = "https://github.com/kevb/sleepapp/releases/download/audio-v1/"
+        private const val BASE_URL = "https://github.com/kevb/sleepapp/releases/download/audio-v2/"
         private const val MANIFEST_URL = "${BASE_URL}manifest.json"
         private const val PREFS_NAME = "manifest_cache"
         private const val KEY_JSON = "manifest_json"

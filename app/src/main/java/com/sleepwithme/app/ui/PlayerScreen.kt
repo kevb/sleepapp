@@ -46,9 +46,12 @@ fun PlayerScreen(viewModel: MainViewModel) {
     val positionMs by viewModel.positionMs.collectAsState()
 
     val ambientMode by viewModel.ambientMode.collectAsState()
+    val collections by viewModel.collections.collectAsState()
 
     val currentTrack = collection?.tracks?.getOrNull(trackIndex)
     val totalTracks = collection?.tracks?.size ?: 0
+
+    var showCollectionPicker by remember { mutableStateOf(false) }
 
     // Pulsing alpha for fading state
     val infiniteTransition = rememberInfiniteTransition(label = "fade-pulse")
@@ -95,23 +98,42 @@ fun PlayerScreen(viewModel: MainViewModel) {
         ) {
             // Collection & Track info
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = (collection?.title ?: "Loading...").uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Indigo.copy(alpha = 0.7f),
-                    letterSpacing = 3.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = currentTrack?.title ?: "",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+                Box {
+                    Text(
+                        text = collection?.title ?: "Loading...",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures { showCollectionPicker = true }
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = showCollectionPicker,
+                        onDismissRequest = { showCollectionPicker = false },
+                        modifier = Modifier.background(Color(0xFF1A1A2E))
+                    ) {
+                        collections.forEach { col ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = col.title,
+                                        color = if (col.id == collection?.id) Indigo else Color.White.copy(alpha = 0.8f),
+                                        fontWeight = if (col.id == collection?.id) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.switchCollection(col)
+                                    showCollectionPicker = false
+                                }
+                            )
+                        }
+                    }
+                }
                 if (totalTracks > 0) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "${trackIndex + 1} of $totalTracks",
+                        text = "#${trackIndex + 1} of $totalTracks",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.3f)
                     )
