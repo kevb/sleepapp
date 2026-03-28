@@ -46,6 +46,7 @@ fun PlayerScreen(viewModel: MainViewModel) {
     val positionMs by viewModel.positionMs.collectAsState()
 
     val ambientMode by viewModel.ambientMode.collectAsState()
+    val isBuffering by viewModel.isBuffering.collectAsState()
     val collections by viewModel.collections.collectAsState()
 
     val currentTrack = collection?.tracks?.getOrNull(trackIndex)
@@ -244,9 +245,9 @@ fun PlayerScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = formatTime(positionMs / 1000),
+                            text = if (isBuffering) "Buffering..." else formatTime(positionMs / 1000),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.3f)
+                            color = if (isBuffering) Indigo.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.3f)
                         )
                         Text(
                             text = formatTime(currentTrack.durationSecs.toLong()),
@@ -301,11 +302,20 @@ fun PlayerScreen(viewModel: MainViewModel) {
                                 defaultElevation = 8.dp
                             )
                         ) {
-                            Text(
-                                text = if (isPlaying) "\u23F8" else "\u25B6",
-                                fontSize = if (isPlaying) 28.sp else 24.sp,
-                                color = Color.White
-                            )
+                            if (isBuffering) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    text = if (isPlaying) "\u2759\u2759" else "\u25B6",
+                                    fontSize = if (isPlaying) 24.sp else 24.sp,
+                                    letterSpacing = if (isPlaying) 2.sp else 0.sp,
+                                    color = Color.White
+                                )
+                            }
                         }
 
                         // Forward

@@ -30,6 +30,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering
+
     private val _trackIndex = MutableStateFlow(0)
     val trackIndex: StateFlow<Int> = _trackIndex
 
@@ -78,6 +81,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             service.playerManager.isPlaying.collect { _isPlaying.value = it }
+        }
+        viewModelScope.launch {
+            service.playerManager.isBuffering.collect { _isBuffering.value = it }
         }
         viewModelScope.launch {
             service.playerManager.currentTrackIndex.collect { index ->

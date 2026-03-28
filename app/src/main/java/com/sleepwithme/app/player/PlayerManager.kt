@@ -29,6 +29,9 @@ class PlayerManager(context: Context, private val scope: CoroutineScope) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering
+
     private val _currentTrackIndex = MutableStateFlow(0)
     val currentTrackIndex: StateFlow<Int> = _currentTrackIndex
 
@@ -42,6 +45,10 @@ class PlayerManager(context: Context, private val scope: CoroutineScope) {
             override fun onIsPlayingChanged(playing: Boolean) {
                 _isPlaying.value = playing
                 if (playing) startPositionPolling() else stopPositionPolling()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                _isBuffering.value = playbackState == Player.STATE_BUFFERING
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
