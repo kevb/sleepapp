@@ -94,6 +94,8 @@ class TrackCache(context: Context) {
     }
 
     private fun fileForTrack(track: Track): File {
-        return File(cacheDir, "${track.id}.opus")
+        // Use the URL filename (e.g. "good-place-track01.opus") to avoid collisions between collections
+        val urlFilename = track.url.substringAfterLast("/")
+        return File(cacheDir, urlFilename)
     }
 }
