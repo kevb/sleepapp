@@ -36,7 +36,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _positionMs = MutableStateFlow(0L)
     val positionMs: StateFlow<Long> = _positionMs
 
-    private val _timerDurationMins = MutableStateFlow(prefs.timerDurationMins)
+    private val _timerDurationMins = MutableStateFlow(PlaybackPrefs.DEFAULT_TIMER_MINS)
     val timerDurationMins: StateFlow<Int> = _timerDurationMins
 
     private val _ambientMode = MutableStateFlow(AmbientMode.Off)
@@ -131,7 +131,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!wasPlaying) {
             // Always restore volume when manually playing
             pm.setVolume(1f)
+            playerService?.ambientPlayer?.setVolume(0.45f)
             pm.play()
+            playerService?.ambientPlayer?.resume()
             if (sleepTimer.state.value == TimerState.Stopped) {
                 sleepTimer.start(_timerDurationMins.value)
             }
@@ -147,9 +149,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun adjustTimer(deltaMins: Int) {
-        val newDuration = (_timerDurationMins.value + deltaMins).coerceIn(5, 120)
-        _timerDurationMins.value = newDuration
-        prefs.timerDurationMins = newDuration
         sleepTimer.adjustTime(deltaMins * 60 * 1000L)
     }
 

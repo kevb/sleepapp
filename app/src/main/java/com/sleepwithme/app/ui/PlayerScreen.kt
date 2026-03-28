@@ -256,7 +256,7 @@ fun PlayerScreen(viewModel: MainViewModel) {
                     ) {
                         // Rewind
                         SeekButton(
-                            label = "\u23EA",
+                            label = "\u25C0\u25C0",
                             onTick = { seekOffsetMins -= 2 },
                             onRelease = {
                                 if (seekOffsetMins != 0) {
@@ -288,7 +288,7 @@ fun PlayerScreen(viewModel: MainViewModel) {
 
                         // Forward
                         SeekButton(
-                            label = "\u23E9",
+                            label = "\u25B6\u25B6",
                             onTick = { seekOffsetMins += 2 },
                             onRelease = {
                                 if (seekOffsetMins != 0) {
@@ -300,7 +300,7 @@ fun PlayerScreen(viewModel: MainViewModel) {
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
@@ -343,7 +343,8 @@ private fun SeekButton(
     ) {
         Text(
             text = label,
-            fontSize = 28.sp,
+            fontSize = 20.sp,
+            letterSpacing = (-4).sp,
             color = if (pressed) Indigo else Color.White.copy(alpha = 0.7f)
         )
     }
