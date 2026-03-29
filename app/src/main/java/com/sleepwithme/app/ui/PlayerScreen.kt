@@ -49,6 +49,9 @@ fun PlayerScreen(viewModel: MainViewModel) {
     val isBuffering by viewModel.isBuffering.collectAsState()
     val collections by viewModel.collections.collectAsState()
 
+    val btBatteryLevel by viewModel.btBattery.batteryLevel.collectAsState()
+    val btDeviceName by viewModel.btBattery.deviceName.collectAsState()
+
     val currentTrack = collection?.tracks?.getOrNull(trackIndex)
     val totalTracks = collection?.tracks?.size ?: 0
 
@@ -137,6 +140,18 @@ fun PlayerScreen(viewModel: MainViewModel) {
                         text = "#${trackIndex + 1} of $totalTracks",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.3f)
+                    )
+                }
+
+                // Bluetooth battery
+                if (btBatteryLevel >= 0) {
+                    val isLow = btBatteryLevel <= com.sleepwithme.app.bluetooth.BluetoothBatteryMonitor.LOW_BATTERY_THRESHOLD
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "${btDeviceName ?: "Earbuds"} — ${btBatteryLevel}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = if (isLow) FontWeight.Medium else FontWeight.Normal,
+                        color = if (isLow) Amber else Color.White.copy(alpha = 0.3f)
                     )
                 }
             }

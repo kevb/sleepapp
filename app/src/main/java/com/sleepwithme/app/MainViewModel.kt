@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.sleepwithme.app.data.Collection
 import com.sleepwithme.app.data.ManifestRepository
 import com.sleepwithme.app.data.PlaybackPrefs
+import com.sleepwithme.app.bluetooth.BluetoothBatteryMonitor
 import com.sleepwithme.app.player.AmbientMode
 import com.sleepwithme.app.player.PlaybackService
 import com.sleepwithme.app.timer.SleepTimer
@@ -19,6 +20,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val manifestRepo = ManifestRepository(application)
     val prefs = PlaybackPrefs(application)
+    val btBattery = BluetoothBatteryMonitor(application)
 
     private var playerService: PlaybackService? = null
     private var positionSaveJob: kotlinx.coroutines.Job? = null
@@ -63,6 +65,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
+        btBattery.start()
+
         viewModelScope.launch {
             manifestRepo.refresh()
         }
@@ -201,6 +205,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         saveCurrentPosition()
         positionSaveJob?.cancel()
+        btBattery.stop()
         super.onCleared()
     }
 }
