@@ -1,6 +1,8 @@
 package com.sleepwithme.app.bluetooth
 
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Monitors connected Bluetooth device battery level via HFP broadcasts.
+ * Monitors connected Bluetooth device battery level.
  * For TWS earbuds, the reported value is typically the lowest of the two earbuds.
  */
 class BluetoothBatteryMonitor(private val context: Context) {
@@ -41,11 +43,15 @@ class BluetoothBatteryMonitor(private val context: Context) {
                     intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 }
                 val name = try { device?.name } catch (_: SecurityException) { null }
-                Log.d("BTBattery", "Battery update: $name = $level%")
-                _batteryLevel.value = level
-                _deviceName.value = name
+                Log.d("BTBattery", "Broadcast: $name = $level%")
+                updateBattery(level, name)
             }
         }
+    }
+
+    private fun updateBattery(level: Int, name: String?) {
+        _batteryLevel.value = level
+        if (name != null) _deviceName.value = name
     }
 
     fun start() {
@@ -54,6 +60,54 @@ class BluetoothBatteryMonitor(private val context: Context) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
+        }
+        // Read current level from already-connected devices
+        pollConnectedDevices()
+    }
+
+    /**
+     * Check bonded + connected audio devices for battery level using hidden getBatteryLevel().
+     * This catches the case where earbuds were connected before the app started.
+     */
+    private fun pollConnectedDevices() {
+        try {
+            val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            val adapter = btManager?.adapter ?: return
+            val bondedDevices = try { adapter.bondedDevices } catch (_: SecurityException) { return }
+
+            // Check A2DP (audio) connected devices
+            adapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                    try {
+                        val connected = proxy.connectedDevices
+                        for (device in connected) {
+                            val level = getDeviceBattery(device)
+                            val name = try { device.name } catch (_: SecurityException) { null }
+                            Log.d("BTBattery", "Poll: $name = $level%")
+                            if (level >= 0) {
+                                updateBattery(level, name)
+                                break // Use first device with valid battery
+                            }
+                        }
+                    } catch (e: SecurityException) {
+                        Log.d("BTBattery", "No BT permission for polling")
+                    }
+                    adapter.closeProfileProxy(profile, proxy)
+                }
+
+                override fun onServiceDisconnected(profile: Int) {}
+            }, BluetoothProfile.A2DP)
+        } catch (e: Exception) {
+            Log.d("BTBattery", "Poll failed: ${e.message}")
+        }
+    }
+
+    private fun getDeviceBattery(device: BluetoothDevice): Int {
+        return try {
+            val method = device.javaClass.getMethod("getBatteryLevel")
+            method.invoke(device) as? Int ?: -1
+        } catch (_: Exception) {
+            -1
         }
     }
 
